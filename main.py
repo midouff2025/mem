@@ -30,12 +30,11 @@ if not TOKEN:
 class MyBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        intents.members = True   # ضروري عشان نرصد دخول الأعضاء
+        intents.members = True
+        intents.message_content = True
         super().__init__(command_prefix="!", intents=intents)
         self.session = None
-        self.invites = {}  # نخزن الدعوات الحالية
-
-        # تحميل بيانات الدعوات السابقة
+        self.invites = {}
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r") as f:
                 self.invite_counts = json.load(f)
@@ -43,13 +42,10 @@ class MyBot(commands.Bot):
             self.invite_counts = {}
 
     async def setup_hook(self):
-        # aiohttp session
         self.session = aiohttp.ClientSession()
-        # Flask thread
         flask_thread = threading.Thread(target=run_flask, daemon=True)
         flask_thread.start()
         print("🚀 Flask server started in background")
-        # tasks
         self.update_status.start()
         self.keep_alive.start()
 
@@ -62,7 +58,6 @@ class MyBot(commands.Bot):
         global bot_name
         bot_name = self.user.name
         print(f"✅ Logged in as {self.user}")
-        # حفظ الدعوات الحالية
         for guild in self.guilds:
             try:
                 self.invites[guild.id] = await guild.invites()
@@ -103,15 +98,11 @@ class MyBot(commands.Bot):
         try:
             new_invites = await member.guild.invites()
             old_invites = self.invites.get(member.guild.id, [])
-
-            # تحديد الدعوة الصحيحة بدقة
             for new in new_invites:
                 match = next((old for old in old_invites if old.code == new.code), None)
                 if match and new.uses > match.uses:
                     inviter = new.inviter
                     break
-
-            # تحديث الدعوات
             self.invites[member.guild.id] = new_invites
         except discord.Forbidden:
             inviter = None
@@ -125,15 +116,11 @@ class MyBot(commands.Bot):
 
         if inviter:
             uid = str(inviter.id)
-
             if uid not in self.invite_counts:
                 self.invite_counts[uid] = START_POINTS
-
             self.invite_counts[uid] += 1
-
             with open(DATA_FILE, "w") as f:
                 json.dump(self.invite_counts, f)
-
             total_invites = self.invite_counts[uid]
             embed.add_field(name="🙋 Invited By", value=inviter.mention, inline=False)
             embed.add_field(name="🏆 Total Invites by User", value=str(total_invites), inline=False)
@@ -164,12 +151,12 @@ class MyBot(commands.Bot):
     async def on_message(self, message):
         if message.channel.id == WELCOME_CHANNEL_ID and not message.author.bot:
             if not message.content.startswith("!inv"):
+                await message.delete()
                 embed = discord.Embed(
                     title="⚠️ ممنوع إرسال رسائل هنا",
                     description="✅ فقط استخدم الأمر `!inv` لمعرفة عدد دعواتك.",
                     color=discord.Color.red()
                 )
-                await message.delete()
                 await message.channel.send(embed=embed, delete_after=5)
                 return
         await self.process_commands(message)
