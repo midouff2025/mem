@@ -5,11 +5,13 @@ import threading
 import os
 import asyncio
 import aiohttp
+import json
 
 # --- Flask Keep-Alive ---
 app = Flask(__name__)
 bot_name = "Loading..."
 WELCOME_CHANNEL_ID = 1403045441641250907  # ضع هنا ID الشانل
+DATA_FILE = "invites.json"  # نخزن بيانات الدعوات
 
 @app.route("/")
 def home():
@@ -31,6 +33,13 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
         self.session = None
         self.invites = {}  # نخزن الدعوات الحالية
+
+        # تحميل بيانات الدعوات السابقة
+        if os.path.exists(DATA_FILE):
+            with open(DATA_FILE, "r") as f:
+                self.invite_counts = json.load(f)
+        else:
+            self.invite_counts = {}
 
     async def setup_hook(self):
         # aiohttp session
@@ -89,7 +98,7 @@ class MyBot(commands.Bot):
 
     # --- New Member Event ---
     async def on_member_join(self, member: discord.Member):
-        inviter = "Unknown"
+        inviter = None
         try:
             # نحصل الدعوات بعد انضمام العضو
             new_invites = await member.guild.invites()
@@ -98,13 +107,13 @@ class MyBot(commands.Bot):
             for new in new_invites:
                 for old in old_invites:
                     if new.code == old.code and new.uses > old.uses:
-                        inviter = f"{new.inviter} (Invite Code: {new.code})"
+                        inviter = new.inviter
                         break
 
             # تحديث الدعوات
             self.invites[member.guild.id] = new_invites
         except discord.Forbidden:
-            inviter = "Missing Permissions"
+            inviter = None
 
         # تجهيز Embed
         embed = discord.Embed(
@@ -113,7 +122,21 @@ class MyBot(commands.Bot):
             timestamp=member.joined_at
         )
         embed.add_field(name="👤 Member", value=member.mention, inline=False)
-        embed.add_field(name="🙋 Invited By", value=inviter, inline=False)
+
+        if inviter:
+            uid = str(inviter.id)
+            self.invite_counts[uid] = self.invite_counts.get(uid, 0) + 1
+
+            # نحفظ في ملف
+            with open(DATA_FILE, "w") as f:
+                json.dump(self.invite_counts, f)
+
+            total_invites = self.invite_counts[uid]
+            embed.add_field(name="🙋 Invited By", value=inviter.mention, inline=False)
+            embed.add_field(name="🏆 Total Invites by User", value=str(total_invites), inline=False)
+        else:
+            embed.add_field(name="🙋 Invited By", value="Unknown", inline=False)
+
         embed.add_field(name="📊 Total Members", value=str(member.guild.member_count), inline=False)
         embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
         embed.set_footer(text=f"Welcome to {member.guild.name}!")
@@ -132,4 +155,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
