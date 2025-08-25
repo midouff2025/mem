@@ -10,7 +10,7 @@ import json
 # --- Flask Keep-Alive ---
 app = Flask(__name__)
 bot_name = "Loading..."
-WELCOME_CHANNEL_ID = 1403045441641250907  # ضع هنا ID الشانل
+WELCOME_CHANNEL_ID = 1403045441641250907  # ضع هنا ID القناة
 DATA_FILE = "invites.json"
 START_POINTS = 5  # الدعوات تبدأ من 5
 
@@ -156,10 +156,10 @@ class MyBot(commands.Bot):
         if message.author.bot:
             return
 
-        # ✅ أولًا: خلي الأوامر تشتغل
+        # ✅ عالج الأوامر أولاً
         await self.process_commands(message)
 
-        # ⛔ بعدين افحص لو الرسالة في قناة المسابقة وماهيش !inv
+        # ⛔ بعدين امنع أي رسالة مش !inv في القناة المحددة
         if message.channel.id == WELCOME_CHANNEL_ID:
             if not message.content.startswith("!inv"):
                 await message.delete()
