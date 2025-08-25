@@ -11,8 +11,8 @@ import json
 app = Flask(__name__)
 bot_name = "Loading..."
 WELCOME_CHANNEL_ID = 1403045441641250907  # ضع هنا ID الشانل
-DATA_FILE = "invites.json"  # نخزن بيانات الدعوات
-START_POINTS = 5  # عدد الدعوات التي يبدأ بها كل عضو
+DATA_FILE = "invites.json"
+START_POINTS = 5  # الدعوات تبدأ من 5
 
 @app.route("/")
 def home():
@@ -35,6 +35,7 @@ class MyBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
         self.session = None
         self.invites = {}
+
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, "r") as f:
                 self.invite_counts = json.load(f)
@@ -83,7 +84,10 @@ class MyBot(commands.Bot):
     @tasks.loop(minutes=5)
     async def update_status(self):
         try:
-            activity = discord.Activity(type=discord.ActivityType.watching, name=f"{len(self.guilds)} servers")
+            activity = discord.Activity(
+                type=discord.ActivityType.watching,
+                name=f"{len(self.guilds)} servers"
+            )
             await self.change_presence(activity=activity)
         except Exception as e:
             print(f"⚠️ Status update failed: {e}")
@@ -147,9 +151,16 @@ class MyBot(commands.Bot):
         )
         await ctx.send(embed=embed)
 
-    # --- Block Other Messages in Contest Channel ---
+    # --- Block Other Messages ---
     async def on_message(self, message):
-        if message.channel.id == WELCOME_CHANNEL_ID and not message.author.bot:
+        if message.author.bot:
+            return
+
+        # ✅ أولًا: خلي الأوامر تشتغل
+        await self.process_commands(message)
+
+        # ⛔ بعدين افحص لو الرسالة في قناة المسابقة وماهيش !inv
+        if message.channel.id == WELCOME_CHANNEL_ID:
             if not message.content.startswith("!inv"):
                 await message.delete()
                 embed = discord.Embed(
@@ -158,8 +169,6 @@ class MyBot(commands.Bot):
                     color=discord.Color.red()
                 )
                 await message.channel.send(embed=embed, delete_after=5)
-                return
-        await self.process_commands(message)
 
 # --- Run Bot ---
 bot = MyBot()
