@@ -12,6 +12,7 @@ app = Flask(__name__)
 bot_name = "Loading..."
 WELCOME_CHANNEL_ID = 1403045441641250907  # ضع هنا ID الشانل
 DATA_FILE = "invites.json"  # نخزن بيانات الدعوات
+START_POINTS = 5  # عدد الدعوات التي يبدأ بها كل عضو
 
 @app.route("/")
 def home():
@@ -125,7 +126,13 @@ class MyBot(commands.Bot):
 
         if inviter:
             uid = str(inviter.id)
-            self.invite_counts[uid] = self.invite_counts.get(uid, 0) + 1
+
+            # إذا العضو أول مرة يسجل له → يبدأ من START_POINTS
+            if uid not in self.invite_counts:
+                self.invite_counts[uid] = START_POINTS
+
+            # زيادة الدعوات
+            self.invite_counts[uid] += 1
 
             # نحفظ في ملف
             with open(DATA_FILE, "w") as f:
