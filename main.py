@@ -101,22 +101,21 @@ class MyBot(commands.Bot):
     async def on_member_join(self, member: discord.Member):
         inviter = None
         try:
-            # نحصل الدعوات بعد انضمام العضو
             new_invites = await member.guild.invites()
             old_invites = self.invites.get(member.guild.id, [])
 
+            # تحديد الدعوة الصحيحة بدقة
             for new in new_invites:
-                for old in old_invites:
-                    if new.code == old.code and new.uses > old.uses:
-                        inviter = new.inviter
-                        break
+                match = next((old for old in old_invites if old.code == new.code), None)
+                if match and new.uses > match.uses:
+                    inviter = new.inviter
+                    break
 
             # تحديث الدعوات
             self.invites[member.guild.id] = new_invites
         except discord.Forbidden:
             inviter = None
 
-        # تجهيز Embed
         embed = discord.Embed(
             title="🎉 New Member Joined!",
             color=discord.Color.green(),
@@ -127,14 +126,11 @@ class MyBot(commands.Bot):
         if inviter:
             uid = str(inviter.id)
 
-            # إذا العضو أول مرة يسجل له → يبدأ من START_POINTS
             if uid not in self.invite_counts:
                 self.invite_counts[uid] = START_POINTS
 
-            # زيادة الدعوات
             self.invite_counts[uid] += 1
 
-            # نحفظ في ملف
             with open(DATA_FILE, "w") as f:
                 json.dump(self.invite_counts, f)
 
@@ -148,10 +144,35 @@ class MyBot(commands.Bot):
         embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
         embed.set_footer(text=f"Welcome to {member.guild.name}!")
 
-        # إرسال للشانل المحدد
         channel = member.guild.get_channel(WELCOME_CHANNEL_ID)
         if channel:
             await channel.send(embed=embed)
+
+    # --- Command: !inv ---
+    @commands.command()
+    async def inv(self, ctx):
+        uid = str(ctx.author.id)
+        invites = self.invite_counts.get(uid, START_POINTS)
+        embed = discord.Embed(
+            title="📊 Your Invites",
+            description=f"👤 {ctx.author.mention}, you have **{invites}** invites.",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
+
+    # --- Block Other Messages in Contest Channel ---
+    async def on_message(self, message):
+        if message.channel.id == WELCOME_CHANNEL_ID and not message.author.bot:
+            if not message.content.startswith("!inv"):
+                embed = discord.Embed(
+                    title="⚠️ ممنوع إرسال رسائل هنا",
+                    description="✅ فقط استخدم الأمر `!inv` لمعرفة عدد دعواتك.",
+                    color=discord.Color.red()
+                )
+                await message.delete()
+                await message.channel.send(embed=embed, delete_after=5)
+                return
+        await self.process_commands(message)
 
 # --- Run Bot ---
 bot = MyBot()
