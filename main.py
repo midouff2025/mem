@@ -9,7 +9,7 @@ import aiohttp
 # --- Flask Keep-Alive ---
 app = Flask(__name__)
 bot_name = "Loading..."
-WELCOME_CHANNEL_ID = 123456789012345678  # ضع هنا ID الشانل
+WELCOME_CHANNEL_ID = 1403045441641250907  # ضع هنا ID الشانل
 
 @app.route("/")
 def home():
@@ -64,7 +64,7 @@ class MyBot(commands.Bot):
     async def keep_alive(self):
         if self.session:
             try:
-                url = "https://check-ban-e7pa.onrender.com"
+                url = "https://mem-l84g.onrender.com"
                 async with self.session.get(url) as response:
                     print(f"💡 Keep-Alive ping status: {response.status}")
             except Exception as e:
@@ -132,3 +132,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
